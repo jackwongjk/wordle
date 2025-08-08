@@ -3,10 +3,6 @@
 import { LETTER_COUNT, LETTER_REVEAL_DELAY } from '@/lib/utils';
 import React, { useMemo, useEffect } from 'react';
 
-const MAX_TRIES = process.env.MAX_TRIES
-  ? parseInt(process.env.MAX_TRIES, 10)
-  : 6;
-
 export default function TryList({
   tries,
   answer,
@@ -14,6 +10,7 @@ export default function TryList({
   setLetterHitList,
   setLetterPresentList,
   setLetterMissList,
+  maxTries = 6,
 }) {
   const answerLetterList = useMemo(
     () => (answer ? answer.split('') : []),
@@ -83,7 +80,7 @@ export default function TryList({
 
   return (
     <>
-      {Array(MAX_TRIES)
+      {Array(maxTries)
         .fill(null)
         .map((_, index) => {
           const currentRow = tries[index] || [];
@@ -93,7 +90,6 @@ export default function TryList({
             .map((_, i) => currentRow[i] ?? null);
 
           const canRevealGuess = index < round;
-          console.log({ filledRow, round, canRevealGuess });
 
           return (
             <div key={index} className="flex justify-center gap-1">
