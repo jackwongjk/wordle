@@ -1,7 +1,7 @@
 'use client';
 
-import useLetterInputHook from '@/app/hooks/word-input-hook/LetterInputHook';
-import useWordTryHook from '@/app/hooks/word-input-hook/WordTryHook';
+import useLetterInputHook from '@/app/hooks/useLetterInputHook';
+import useWordTryHook from '@/app/hooks/useWordTryHook';
 import AnswerReveal from '@/components/answer-reveal';
 import GameControl from '@/components/game-control';
 import Keyboard from '@/components/keyboard';
