@@ -4,6 +4,7 @@ import useLetterInputHook from '@/app/hooks/useLetterInputHook';
 import useWordleGame from '@/app/hooks/useWordleGame';
 import useWordTryHook from '@/app/hooks/useWordTryHook';
 import AnswerReveal from '@/components/answer-reveal';
+import CoverOverlay from '@/components/cover-overlay';
 import GameControl from '@/components/game-control';
 import Keyboard from '@/components/keyboard';
 import TryList from '@/components/try-list';
@@ -30,10 +31,6 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
   const [answer, setAnswer] = useState('');
   const [roundEnd, setRoundEnd] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-
-  useEffect(() => {
-    startNewGame();
-  }, []);
 
   const gameReset = useCallback(() => {
     clearInput();
@@ -103,7 +100,7 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
           break;
       }
     },
-    [input, backspaceInput, addInput, clearInput, roundEnd, sendGuess],
+    [input, backspaceInput, addInput, clearInput, roundEnd, sendGuess, status],
   );
 
   useEffect(() => {
@@ -112,7 +109,7 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
   }, [input, round]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-1">
+    <div className="flex flex-col items-center justify-center w-full h-full gap-1 relative">
       <GameControl roundEnd={roundEnd} gameReset={gameReset} />
       <AnswerReveal answer={answer} roundEnd={roundEnd} />
       <TryList
@@ -131,6 +128,11 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
           disabled={status === GAME_STATUS.LOADING}
         />
       </div>
+      <CoverOverlay
+        startGame={startNewGame}
+        status={status}
+        isVisible={!gameId}
+      />
     </div>
   );
 }

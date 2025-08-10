@@ -1,7 +1,7 @@
 'use client';
 
 import { GAME_STATUS } from '@/lib/utils';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function useWordleGame() {
   const [gameId, setGameId] = useState(null);
@@ -9,7 +9,10 @@ export default function useWordleGame() {
   const [error, setError] = useState(null);
 
   // Start a new game
-  const startNewGame = async () => {
+  const startNewGame = useCallback(async () => {
+    if (status !== GAME_STATUS.IDLE) {
+      return;
+    }
     setError(null);
     setStatus(GAME_STATUS.LOADING);
     try {
@@ -22,7 +25,7 @@ export default function useWordleGame() {
       setError(err.message);
       setStatus(GAME_STATUS.IDLE);
     }
-  };
+  }, [status]);
 
   // Send user input
   const sendGuess = async (word) => {
