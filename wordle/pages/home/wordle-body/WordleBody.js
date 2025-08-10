@@ -1,19 +1,27 @@
 'use client';
 
 import useLetterInputHook from '@/app/hooks/useLetterInputHook';
+import useWordleGame from '@/app/hooks/useWordleGame';
 import useWordTryHook from '@/app/hooks/useWordTryHook';
 import AnswerReveal from '@/components/answer-reveal';
 import GameControl from '@/components/game-control';
 import Keyboard from '@/components/keyboard';
 import TryList from '@/components/try-list';
-import { LETTER_COUNT, LETTER_REVEAL_DELAY } from '@/lib/utils';
+import { GAME_STATUS, LETTER_COUNT, LETTER_REVEAL_DELAY } from '@/lib/utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+const DELAY = LETTER_COUNT * LETTER_REVEAL_DELAY;
+
 export default function WordleBody({ words = [], maxTries = 6 }) {
+  const { gameId, status, error, startNewGame, sendGuess } = useWordleGame();
   const { input, backspaceInput, addInput, clearInput } = useLetterInputHook();
   const { tries, addTries, clearTries } = useWordTryHook();
 
+  // To display the score for each try in TryList
+  const [letterScoreList, setLetterScoreList] = useState([]);
+
+  // For displaying the letter status of Keyboard
   const [letterPresentList, setLetterPresentList] = useState([]);
   const [letterHitList, setLetterHitList] = useState([]);
   const [letterMissList, setLetterMissList] = useState([]);
@@ -23,19 +31,9 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
   const [roundEnd, setRoundEnd] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
-  const wordList = useMemo(() => words.split(','), [words]);
-
-  const resetAnswer = useCallback(() => {
-    if (wordList.length === 0) {
-      toast.error('No words available');
-      return;
-    }
-    setAnswer(wordList[Math.floor(Math.random() * wordList.length)]);
-  }, [wordList]);
-
   useEffect(() => {
-    resetAnswer();
-  }, [resetAnswer]);
+    startNewGame();
+  }, []);
 
   const gameReset = useCallback(() => {
     clearInput();
@@ -44,49 +42,53 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
     setLetterPresentList([]);
     setLetterHitList([]);
     setLetterMissList([]);
-    resetAnswer();
+    startNewGame();
     setRoundEnd(false);
-  }, [resetAnswer, clearTries, clearInput]);
+    setIsCorrect(false);
+    setAnswer('');
+  }, [startNewGame, clearTries, clearInput]);
 
   const onKeyPress = useCallback(
-    (key) => {
+    async (key) => {
       if (roundEnd) {
         return;
       }
-      let delay = LETTER_COUNT * LETTER_REVEAL_DELAY;
       switch (key) {
         case 'ENTER':
-          // When input is not complete
-          if (input.length < LETTER_COUNT) {
-            toast.error('Not enough letters');
-            break;
+          const resp = await sendGuess(input.join(''));
+          const {
+            isCorrect,
+            isGameOver,
+            tries,
+            success,
+            hit,
+            present,
+            miss,
+            scoreForEachTry,
+            error: respError,
+            answer: respAnswer,
+          } = resp;
+          if (!success) {
+            toast.error(respError || 'Failed to submit guess');
+            return;
           }
-          // Check if the word is valid
-          if (!wordList.includes(input.join('').toLowerCase())) {
-            toast.error('Not in word list');
-            break;
+          if (respAnswer) {
+            setAnswer(respAnswer);
           }
-          const isCorrectWord =
-            input.join('').toLowerCase() === answer.toLowerCase();
-          // Check if the word is correct
-          if (isCorrectWord) {
-            // For animation delay
-            setTimeout(() => {
-              setIsCorrect(true);
+          setIsCorrect(isCorrect);
+          // Update game state with delayed effect
+          setTimeout(() => {
+            setLetterHitList(hit);
+            setLetterPresentList(present);
+            setLetterMissList(miss);
+            setRoundEnd(isGameOver);
+            if (isCorrect) {
               toast.success('Congratulations! You guessed the word!');
-              setRoundEnd(true);
-            }, delay);
-          }
-          // When maxTries is reached
-          if (round >= maxTries - 1 && !isCorrectWord) {
-            // For animation delay
-            setTimeout(() => {
-              setRoundEnd(true);
-              toast.error('Maximum tries reached');
-            }, delay);
-          }
+            }
+          }, DELAY);
+          setLetterScoreList(scoreForEachTry);
           clearInput();
-          setRound((prevRound) => prevRound + 1);
+          setRound(tries.length - 1 + 1); // Increment round
           break;
         case 'BACKSPACE':
           // Handle backspace logic
@@ -101,17 +103,7 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
           break;
       }
     },
-    [
-      input,
-      backspaceInput,
-      addInput,
-      clearInput,
-      wordList,
-      round,
-      answer,
-      maxTries,
-      roundEnd,
-    ],
+    [input, backspaceInput, addInput, clearInput, roundEnd, sendGuess],
   );
 
   useEffect(() => {
@@ -127,10 +119,8 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
         tries={tries}
         answer={answer}
         round={round}
-        setLetterHitList={setLetterHitList}
-        setLetterPresentList={setLetterPresentList}
-        setLetterMissList={setLetterMissList}
         maxTries={maxTries}
+        letterScoreList={letterScoreList}
       />
       <div className="mt-6">
         <Keyboard

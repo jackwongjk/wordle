@@ -1,4 +1,5 @@
 'use client';
+import { LETTER_COUNT, LETTER_REVEAL_DELAY } from '@/lib/utils';
 import React from 'react';
 
 const KEYS = [
@@ -29,7 +30,7 @@ export default function Keyboard({
               className={`
                 flex-1
                 m-0.5 px-2 py-3 rounded border border-gray-300 bg-gray-100 hover:bg-gray-200 cursor-pointer
-                sm:px-4
+                sm:px-4 transition-all duration-300
                 ${key === 'ENTER' ? 'text-xs sm:text-sm' : 'text-base sm:text-lg'}
                 ${key === 'ENTER' || key === 'BACKSPACE' ? 'min-w-[56px] sm:min-w-[72px] flex-[1.5]' : 'min-w-[28px] sm:min-w-[40px]'}
                 ${letterHitList.includes(key.toLowerCase()) ? 'bg-green-500 text-white' : ''}

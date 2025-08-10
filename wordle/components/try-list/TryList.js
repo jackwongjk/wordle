@@ -5,85 +5,17 @@ import React, { useMemo, useEffect } from 'react';
 
 export default function TryList({
   tries,
-  answer,
   round,
-  setLetterHitList,
-  setLetterPresentList,
-  setLetterMissList,
   maxTries = 6,
+  letterScoreList,
 }) {
-  const answerLetterList = useMemo(
-    () => (answer ? answer.split('') : []),
-    [answer],
-  );
-
-  useEffect(() => {
-    if (round === 0) return;
-    const currentRow = tries[round - 1] || [];
-    const hitList = [];
-    const presentList = [];
-    const missList = [];
-
-    // For each letter in the current guess row:
-    currentRow.forEach((letter, letterIndex) => {
-      const currentLetter = letter ? letter.toLowerCase() : null;
-      const currentLetterFromAnswer = answerLetterList[letterIndex]
-        ? answerLetterList[letterIndex].toLowerCase()
-        : null;
-      if (!currentLetter) return;
-      if (
-        currentLetter === currentLetterFromAnswer &&
-        !hitList.includes(currentLetter)
-      ) {
-        hitList.push(currentLetter);
-      } else if (
-        answerLetterList.includes(currentLetter) &&
-        !presentList.includes(currentLetter)
-      ) {
-        presentList.push(currentLetter);
-      } else if (!missList.includes(currentLetter)) {
-        missList.push(currentLetter);
-      }
-    });
-
-    // Delay updating hit/present/miss lists until all boxes have revealed
-    const delay = LETTER_COUNT * LETTER_REVEAL_DELAY;
-    const timeout = setTimeout(() => {
-      setLetterHitList((prev) => [
-        ...prev,
-        ...hitList.filter((l) => !prev.includes(l)),
-      ]);
-      setLetterPresentList((prev) => [
-        ...prev.filter((l) => !hitList.includes(l)),
-        ...presentList.filter((l) => !prev.includes(l) && !hitList.includes(l)),
-      ]);
-      setLetterMissList((prev) => [
-        ...prev.filter((l) => !hitList.includes(l) && !presentList.includes(l)),
-        ...missList.filter(
-          (l) =>
-            !prev.includes(l) &&
-            !hitList.includes(l) &&
-            !presentList.includes(l),
-        ),
-      ]);
-    }, delay);
-
-    return () => clearTimeout(timeout);
-  }, [
-    round,
-    tries,
-    answerLetterList,
-    setLetterHitList,
-    setLetterPresentList,
-    setLetterMissList,
-  ]);
-
   return (
     <>
       {Array(maxTries)
         .fill(null)
         .map((_, index) => {
           const currentRow = tries[index] || [];
+          const currentRowScore = letterScoreList[index] || [];
           // Fill the row to LETTER_COUNT with nulls
           const filledRow = Array(LETTER_COUNT)
             .fill(null)
@@ -94,15 +26,12 @@ export default function TryList({
           return (
             <div key={index} className="flex justify-center gap-1">
               {filledRow.map((letter, letterIndex) => {
-                const currentLetterFromAnswer = answerLetterList[letterIndex]
-                  ? answerLetterList[letterIndex].toLowerCase()
-                  : null;
                 const currentLetter = letter ? letter.toLowerCase() : null;
 
                 // The letter is in the correct spot of answer
-                const hit = currentLetter === currentLetterFromAnswer;
+                const hit = currentRowScore[letterIndex] === 'hit';
                 // The letter is in the answer but wrong spot
-                const present = answerLetterList.includes(currentLetter);
+                const present = currentRowScore[letterIndex] === 'present';
 
                 let boxEffect = '';
 
