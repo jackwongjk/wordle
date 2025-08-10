@@ -1,19 +1,29 @@
 'use client';
 
 import useLetterInputHook from '@/app/hooks/useLetterInputHook';
+import useWordleGame from '@/app/hooks/useWordleGame';
 import useWordTryHook from '@/app/hooks/useWordTryHook';
 import AnswerReveal from '@/components/answer-reveal';
+import CoverOverlay from '@/components/cover-overlay';
 import GameControl from '@/components/game-control';
 import Keyboard from '@/components/keyboard';
 import TryList from '@/components/try-list';
-import { LETTER_COUNT, LETTER_REVEAL_DELAY } from '@/lib/utils';
+import { GAME_STATUS, LETTER_COUNT, LETTER_REVEAL_DELAY } from '@/lib/utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+const DELAY = LETTER_COUNT * LETTER_REVEAL_DELAY;
+
 export default function WordleBody({ words = [], maxTries = 6 }) {
+  const { gameId, status, error, startNewGame, sendGuess, restoreGame } =
+    useWordleGame();
   const { input, backspaceInput, addInput, clearInput } = useLetterInputHook();
   const { tries, addTries, clearTries } = useWordTryHook();
 
+  // To display the score for each try in TryList
+  const [letterScoreList, setLetterScoreList] = useState([]);
+
+  // For displaying the letter status of Keyboard
   const [letterPresentList, setLetterPresentList] = useState([]);
   const [letterHitList, setLetterHitList] = useState([]);
   const [letterMissList, setLetterMissList] = useState([]);
@@ -23,20 +33,6 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
   const [roundEnd, setRoundEnd] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
-  const wordList = useMemo(() => words.split(','), [words]);
-
-  const resetAnswer = useCallback(() => {
-    if (wordList.length === 0) {
-      toast.error('No words available');
-      return;
-    }
-    setAnswer(wordList[Math.floor(Math.random() * wordList.length)]);
-  }, [wordList]);
-
-  useEffect(() => {
-    resetAnswer();
-  }, [resetAnswer]);
-
   const gameReset = useCallback(() => {
     clearInput();
     clearTries();
@@ -44,49 +40,82 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
     setLetterPresentList([]);
     setLetterHitList([]);
     setLetterMissList([]);
-    resetAnswer();
+    startNewGame();
     setRoundEnd(false);
-  }, [resetAnswer, clearTries, clearInput]);
+    setIsCorrect(false);
+    setAnswer('');
+  }, [startNewGame, clearTries, clearInput]);
+
+  const gameRestore = useCallback(async () => {
+    const {
+      success,
+      error: restoreError,
+      tries: restoredTries,
+      hit,
+      present,
+      miss,
+      scoreForEachTry,
+    } = await restoreGame();
+    if (!success) {
+      toast.error(restoreError || 'Failed to restore game');
+      return;
+    }
+    if (!restoredTries) {
+      return;
+    }
+    restoredTries.forEach((tryWord, index) => {
+      addTries(tryWord.toUpperCase(), index);
+    });
+    setLetterScoreList(scoreForEachTry);
+    setRound(restoredTries.length);
+    setTimeout(() => {
+      setLetterHitList(hit);
+      setLetterPresentList(present);
+      setLetterMissList(miss);
+    }, DELAY);
+  }, [restoreGame, addTries]);
 
   const onKeyPress = useCallback(
-    (key) => {
-      if (roundEnd) {
+    async (key) => {
+      if (roundEnd || status === GAME_STATUS.LOADING) {
         return;
       }
-      let delay = LETTER_COUNT * LETTER_REVEAL_DELAY;
       switch (key) {
         case 'ENTER':
-          // When input is not complete
-          if (input.length < LETTER_COUNT) {
-            toast.error('Not enough letters');
-            break;
+          const resp = await sendGuess(input.join(''));
+          const {
+            isCorrect,
+            isGameOver,
+            tries,
+            success,
+            hit,
+            present,
+            miss,
+            scoreForEachTry,
+            error: respError,
+            answer: respAnswer,
+          } = resp;
+          if (!success) {
+            toast.error(respError || 'Failed to submit guess');
+            return;
           }
-          // Check if the word is valid
-          if (!wordList.includes(input.join('').toLowerCase())) {
-            toast.error('Not in word list');
-            break;
+          if (respAnswer) {
+            setAnswer(respAnswer);
           }
-          const isCorrectWord =
-            input.join('').toLowerCase() === answer.toLowerCase();
-          // Check if the word is correct
-          if (isCorrectWord) {
-            // For animation delay
-            setTimeout(() => {
-              setIsCorrect(true);
+          setIsCorrect(isCorrect);
+          // Update game state with delayed effect
+          setTimeout(() => {
+            setLetterHitList(hit);
+            setLetterPresentList(present);
+            setLetterMissList(miss);
+            setRoundEnd(isGameOver);
+            if (isCorrect) {
               toast.success('Congratulations! You guessed the word!');
-              setRoundEnd(true);
-            }, delay);
-          }
-          // When maxTries is reached
-          if (round >= maxTries - 1 && !isCorrectWord) {
-            // For animation delay
-            setTimeout(() => {
-              setRoundEnd(true);
-              toast.error('Maximum tries reached');
-            }, delay);
-          }
+            }
+          }, DELAY);
+          setLetterScoreList(scoreForEachTry);
           clearInput();
-          setRound((prevRound) => prevRound + 1);
+          setRound(tries.length - 1 + 1); // Increment round
           break;
         case 'BACKSPACE':
           // Handle backspace logic
@@ -101,17 +130,7 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
           break;
       }
     },
-    [
-      input,
-      backspaceInput,
-      addInput,
-      clearInput,
-      wordList,
-      round,
-      answer,
-      maxTries,
-      roundEnd,
-    ],
+    [input, backspaceInput, addInput, clearInput, roundEnd, sendGuess, status],
   );
 
   useEffect(() => {
@@ -120,17 +139,15 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
   }, [input, round]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-1">
+    <div className="flex flex-col items-center justify-center w-full h-full gap-1 relative">
       <GameControl roundEnd={roundEnd} gameReset={gameReset} />
       <AnswerReveal answer={answer} roundEnd={roundEnd} />
       <TryList
         tries={tries}
         answer={answer}
         round={round}
-        setLetterHitList={setLetterHitList}
-        setLetterPresentList={setLetterPresentList}
-        setLetterMissList={setLetterMissList}
         maxTries={maxTries}
+        letterScoreList={letterScoreList}
       />
       <div className="mt-6">
         <Keyboard
@@ -138,8 +155,15 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
           letterHitList={letterHitList}
           letterPresentList={letterPresentList}
           letterMissList={letterMissList}
+          disabled={status === GAME_STATUS.LOADING}
         />
       </div>
+      <CoverOverlay
+        startGame={startNewGame}
+        restoreGame={gameRestore}
+        status={status}
+        isVisible={!gameId}
+      />
     </div>
   );
 }
