@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 export default function useWordleGame() {
   const [gameId, setGameId] = useState(null);
-  const [status, setStatus] = useState(GAME_STATUS.IDLE); // idle | playing | win | lose
+  const [status, setStatus] = useState(GAME_STATUS.IDLE); // idle | playing | win | lose | loading
   const [error, setError] = useState(null);
 
   // Start a new game
@@ -27,6 +27,8 @@ export default function useWordleGame() {
   // Send user input
   const sendGuess = async (word) => {
     setError(null);
+    setStatus(GAME_STATUS.LOADING);
+
     if (!gameId) {
       setError('No game started');
       return { valid: false };
@@ -41,10 +43,13 @@ export default function useWordleGame() {
       if (!res.ok) throw new Error(data.error || 'Validation failed');
       if (data.isGameOver) {
         setStatus(data.isCorrect ? GAME_STATUS.WIN : GAME_STATUS.LOSE);
+      } else {
+        setStatus(GAME_STATUS.PLAYING);
       }
       return { ...data, success: true };
     } catch (err) {
       setError(err.message);
+      setStatus(GAME_STATUS.PLAYING);
       return { success: false, error: err.message };
     }
   };

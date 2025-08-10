@@ -50,7 +50,7 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
 
   const onKeyPress = useCallback(
     async (key) => {
-      if (roundEnd) {
+      if (roundEnd || status === GAME_STATUS.LOADING) {
         return;
       }
       switch (key) {
@@ -128,6 +128,7 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
           letterHitList={letterHitList}
           letterPresentList={letterPresentList}
           letterMissList={letterMissList}
+          disabled={status === GAME_STATUS.LOADING}
         />
       </div>
     </div>
