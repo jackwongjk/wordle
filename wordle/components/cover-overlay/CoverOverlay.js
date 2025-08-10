@@ -1,9 +1,23 @@
 import { GAME_STATUS } from '@/lib/utils';
 import React, { useEffect, useState } from 'react';
 
-export default function CoverOverlay({ isVisible, status, startGame }) {
+export default function CoverOverlay({
+  isVisible,
+  status,
+  startGame,
+  restoreGame,
+}) {
   const [displayClassname, setDisplayClassname] = useState('flex');
   const [opacityClassname, setOpacityClassname] = useState('opacity-100');
+  const [hasPastGame, setHasPastGame] = useState(false);
+
+  useEffect(() => {
+    const savedGameId = localStorage.getItem('gameId');
+    if (!savedGameId) {
+      return;
+    }
+    setHasPastGame(true);
+  }, []);
 
   useEffect(() => {
     setOpacityClassname(isVisible ? 'opacity-100' : 'opacity-0');
@@ -31,6 +45,17 @@ export default function CoverOverlay({ isVisible, status, startGame }) {
         >
           Start Game
         </button>
+        {hasPastGame && (
+          <button
+            onClick={restoreGame}
+            disabled={
+              status === GAME_STATUS.LOADING || status === GAME_STATUS.PLAYING
+            }
+            className="sm::text-2xl text-xl px-4 py-2 bg-green-500 text-white rounded-lg cursor-pointer hover:bg-green-600 hover:scale-110 transition-all duration-300 disabled:opacity-50"
+          >
+            Restore Game
+          </button>
+        )}
       </div>
     </div>
   );

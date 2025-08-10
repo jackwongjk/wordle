@@ -15,7 +15,8 @@ import { toast } from 'sonner';
 const DELAY = LETTER_COUNT * LETTER_REVEAL_DELAY;
 
 export default function WordleBody({ words = [], maxTries = 6 }) {
-  const { gameId, status, error, startNewGame, sendGuess } = useWordleGame();
+  const { gameId, status, error, startNewGame, sendGuess, restoreGame } =
+    useWordleGame();
   const { input, backspaceInput, addInput, clearInput } = useLetterInputHook();
   const { tries, addTries, clearTries } = useWordTryHook();
 
@@ -44,6 +45,35 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
     setIsCorrect(false);
     setAnswer('');
   }, [startNewGame, clearTries, clearInput]);
+
+  const gameRestore = useCallback(async () => {
+    const {
+      success,
+      error: restoreError,
+      tries: restoredTries,
+      hit,
+      present,
+      miss,
+      scoreForEachTry,
+    } = await restoreGame();
+    if (!success) {
+      toast.error(restoreError || 'Failed to restore game');
+      return;
+    }
+    if (!restoredTries) {
+      return;
+    }
+    restoredTries.forEach((tryWord, index) => {
+      addTries(tryWord.toUpperCase(), index);
+    });
+    setLetterScoreList(scoreForEachTry);
+    setRound(restoredTries.length);
+    setTimeout(() => {
+      setLetterHitList(hit);
+      setLetterPresentList(present);
+      setLetterMissList(miss);
+    }, DELAY);
+  }, [restoreGame, addTries]);
 
   const onKeyPress = useCallback(
     async (key) => {
@@ -130,6 +160,7 @@ export default function WordleBody({ words = [], maxTries = 6 }) {
       </div>
       <CoverOverlay
         startGame={startNewGame}
+        restoreGame={gameRestore}
         status={status}
         isVisible={!gameId}
       />
