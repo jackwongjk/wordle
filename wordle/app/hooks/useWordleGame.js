@@ -10,7 +10,7 @@ export default function useWordleGame() {
 
   // Start a new game
   const startNewGame = useCallback(async () => {
-    if (status !== GAME_STATUS.IDLE) {
+    if (status === GAME_STATUS.LOADING) {
       return;
     }
     setError(null);
