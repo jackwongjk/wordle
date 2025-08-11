@@ -17,8 +17,7 @@ export async function GET() {
   if (WORD_LIST.length === 0) {
     return NextResponse.json({ error: 'No words available.' }, { status: 500 });
   }
-  const answer = WORD_LIST[Math.floor(Math.random() * WORD_LIST.length)];
   const gameId = generateIncrementalGameId();
-  gameStore.set(gameId, { answer, tries: [] });
+  gameStore.set(gameId, { answer: null, tries: [] });
   return NextResponse.json({ gameId });
 }

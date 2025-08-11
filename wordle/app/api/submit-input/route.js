@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { gameStore } from '../_gameStore';
-import { getScore } from '../lib/utils';
+import { findAvailableWords, getScore } from '../lib/utils';
 
 // Get the word list from env
 const WORD_LIST = process.env.WORDS
@@ -41,8 +41,17 @@ export async function POST(request) {
   game.tries = game.tries || [];
   game.tries.push(guess);
 
+  const answer = findAvailableWords(game.tries, WORD_LIST);
+
+  if (answer.length === 1) {
+    game.answer = answer[0];
+  } else {
+    // If there are multiple answers, we cannot determine the correct one yet
+    game.answer = null;
+  }
+
   // Check win
-  const isCorrect = guess === game.answer;
+  const isCorrect = answer.length > 1 ? false : guess === game.answer;
 
   const isGameOver = game.tries.length >= MAX_TRIES || isCorrect;
 
